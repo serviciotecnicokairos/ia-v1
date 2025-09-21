@@ -1,0 +1,233 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Robot Futurista — Demo Interactiva con IA Local</title>
+  <style>
+    :root{--bg1:#0f1724;--bg2:#081028;--accent1:#00f0ff;--accent2:#7b61ff;--accent3:#ff6ec7;--glass:rgba(255,255,255,0.06)}
+    *{box-sizing:border-box}html,body{height:100%;margin:0;font-family:Inter,system-ui,Segoe UI,Arial;background:radial-gradient(1200px 600px at 10% 20%, rgba(123,97,255,0.08), transparent),radial-gradient(900px 500px at 90% 80%, rgba(0,240,255,0.05), transparent),linear-gradient(180deg,var(--bg1),var(--bg2));color:#dfefff}
+    .wrap{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px}
+    .card{width:100%;max-width:1100px;background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));border-radius:18px;padding:16px;backdrop-filter: blur(6px);box-shadow:0 10px 40px rgba(2,6,23,0.8);border:1px solid rgba(255,255,255,0.04);display:grid;grid-template-columns:1fr 420px;gap:16px}
+    @media (max-width:900px){.card{grid-template-columns:1fr}}
+    .stage{position:relative;border-radius:12px;padding:14px;background:linear-gradient(180deg, rgba(255,255,255,0.01), rgba(255,255,255,0.00));min-height:520px;overflow:hidden}
+    .hud{position:absolute;left:12px;top:12px;background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));padding:8px 12px;border-radius:999px;font-size:13px;border:1px solid rgba(255,255,255,0.04)}
+    .robot-wrap{display:flex;align-items:flex-start;justify-content:center;height:100%}
+    svg.robot{width:340px;max-width:92%;height:auto;filter:drop-shadow(0 10px 30px rgba(0,0,0,0.6))}
+    .controls{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}
+    button{background:linear-gradient(90deg,var(--accent1),var(--accent2));border:none;padding:10px 12px;border-radius:10px;color:#02111a;font-weight:700;cursor:pointer;box-shadow:0 6px 18px rgba(123,97,255,0.12)}
+    button.secondary{background:linear-gradient(90deg,var(--accent3),var(--accent2));color:white}
+    .panel{padding:12px;border-left:1px dashed rgba(255,255,255,0.03);display:flex;flex-direction:column;gap:12px}
+    .title{font-weight:700;font-size:20px}
+    .chat{background:linear-gradient(180deg, rgba(255,255,255,0.01), rgba(255,255,255,0.02));border-radius:12px;padding:12px;height:260px;overflow:auto;border:1px solid rgba(255,255,255,0.02)}
+    .msg{margin:6px 0;padding:8px 10px;border-radius:10px;max-width:78%}
+    .msg.user{background:linear-gradient(90deg, rgba(255,255,255,0.03), rgba(255,255,255,0.02));align-self:flex-end;color:#fff}
+    .msg.bot{background:linear-gradient(90deg, rgba(0,240,255,0.06), rgba(123,97,255,0.04));color:#02111a}
+    .inputRow{display:flex;gap:8px;margin-top:10px}
+    input[type=text]{flex:1;padding:10px;border-radius:10px;border:1px solid rgba(255,255,255,0.04);background:transparent;color:inherit}
+    .teachBox{display:flex;flex-direction:column;gap:8px}
+    .teachBox input{padding:8px;border-radius:8px;border:1px solid rgba(255,255,255,0.04);background:transparent;color:inherit}
+    .small{padding:8px 10px;font-size:13px}
+    .foot{font-size:12px;color:rgba(223,239,255,0.7);margin-top:auto}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="card">
+      <div class="stage">
+        <div class="hud">MODO: <strong id="mode">IA INTERACTIVA</strong></div>
+
+        <div style="display:flex;gap:12px;align-items:flex-start">
+          <div style="flex:1">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+              <div style="font-weight:800;font-size:18px">Chat con Robot</div>
+              <div style="display:flex;gap:8px;align-items:center">
+                <label style="font-size:13px">Escuchar<input id="toggle-speech" type="checkbox" style="margin-left:6px"></label>
+                <button id="btn-train" class="small secondary">Entrenar</button>
+              </div>
+            </div>
+
+            <div id="chat" class="chat" aria-live="polite"></div>
+
+            <div class="inputRow">
+              <input id="userInput" type="text" placeholder="Escribe algo al robot... (ej: hola)" />
+              <button id="send" class="small">Enviar</button>
+            </div>
+
+            <div style="margin-top:10px;display:flex;gap:8px">
+              <button id="btn-save" class="small">Guardar memoria</button>
+              <button id="btn-clear" class="small secondary">Borrar memoria</button>
+            </div>
+
+            <!-- Panel entrenar (oculto por defecto) -->
+            <div id="trainPanel" class="teachBox" style="margin-top:12px;display:none">
+              <div style="font-weight:700">Entrena al robot</div>
+              <input id="teachTrigger" placeholder="Frase/trigger (ej: ¿cómo estás?)" />
+              <input id="teachResponse" placeholder="Respuesta que quieres que diga el robot" />
+              <div style="display:flex;gap:8px">
+                <button id="teachSave" class="small">Guardar enseñanza</button>
+                <button id="teachClose" class="small secondary">Cerrar</button>
+              </div>
+              <div style="font-size:12px;color:rgba(223,239,255,0.7)">Tip: enseña frases sencillas. El robot hará coincidencia por inclusión de palabras.</div>
+            </div>
+          </div>
+
+          <div style="width:360px">
+            <div class="robot-wrap">
+              <!-- robot svg -->
+              <svg class="robot" viewBox="0 0 480 520" xmlns="http://www.w3.org/2000/svg">
+                <defs>
+                  <linearGradient id="g1" x1="0" x2="1">
+                    <stop offset="0" stop-color="#00f0ff" />
+                    <stop offset="1" stop-color="#7b61ff" />
+                  </linearGradient>
+                </defs>
+                <g transform="translate(120,40)">
+                  <rect x="80" y="40" width="140" height="110" rx="20" fill="url(#g1)" opacity="0.12" />
+                  <rect x="80" y="40" width="140" height="110" rx="20" fill="#051024" stroke="url(#g1)" stroke-width="3" />
+                  <rect id="visor" x="112" y="68" width="84" height="38" rx="10" fill="#001827" stroke="#00e6ff" stroke-opacity="0.6" stroke-width="1.8" />
+                  <g id="eyes" transform="translate(128,74)">
+                    <circle cx="8" cy="15" r="6" fill="#00f0ff" />
+                    <circle cx="44" cy="15" r="6" fill="#ff6ec7" />
+                  </g>
+                </g>
+                <g transform="translate(90,170)">
+                  <rect x="20" y="10" width="260" height="210" rx="26" fill="#021426" stroke="url(#g1)" stroke-width="2"/>
+                </g>
+                <ellipse cx="240" cy="480" rx="130" ry="28" fill="rgba(2,6,23,0.7)" />
+              </svg>
+            </div>
+
+            <div style="margin-top:12px;font-size:13px;color:rgba(223,239,255,0.8)">
+              Memoria: <span id="memCount">0</span> enseñanzas guardadas.<br>
+              Puedes guardar las enseñanzas en el almacenamiento local del navegador y hacer que el robot hable.
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div>
+          <div class="title">Panel IA</div>
+          <div class="desc">Aquí puedes chatear con una IA muy simple que tú mismo puedes enseñar. Las respuestas combinan tus enseñanzas y respuestas por defecto.</div>
+        </div>
+
+        <div>
+          <div style="font-weight:700;margin-bottom:8px">Acciones rápidas</div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <button id="btn-example" class="small">Ejemplos</button>
+            <button id="btn-export" class="small secondary">Exportar .json</button>
+            <button id="btn-import" class="small">Importar .json</button>
+          </div>
+        </div>
+
+        <div style="margin-top:6px">
+          <div style="font-weight:700;margin-bottom:8px">Instrucciones</div>
+          <ol style="font-size:13px">
+            <li>Escribe en el chat y pulsa Enviar.</li>
+            <li>Para entrenar, pulsa Entrenar y añade una frase y su respuesta.</li>
+            <li>Activa "Escuchar" para que el robot hable la respuesta.</li>
+            <li>Guarda o exporta tu memoria para usarla después.</li>
+          </ol>
+        </div>
+
+        <div class="foot">Atajos: escribe "enséñame" para que el robot sugiera entrenar una respuesta.</div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // IA local: coincidencia simple + memoria en localStorage
+    const chat = document.getElementById('chat');
+    const userInput = document.getElementById('userInput');
+    const send = document.getElementById('send');
+    const btnTrain = document.getElementById('btn-train');
+    const trainPanel = document.getElementById('trainPanel');
+    const teachTrigger = document.getElementById('teachTrigger');
+    const teachResponse = document.getElementById('teachResponse');
+    const teachSave = document.getElementById('teachSave');
+    const teachClose = document.getElementById('teachClose');
+    const btnSave = document.getElementById('btn-save');
+    const btnClear = document.getElementById('btn-clear');
+    const memCount = document.getElementById('memCount');
+    const toggleSpeech = document.getElementById('toggle-speech');
+    const btnExample = document.getElementById('btn-example');
+    const btnExport = document.getElementById('btn-export');
+    const btnImport = document.getElementById('btn-import');
+
+    let memory = JSON.parse(localStorage.getItem('robot_memory') || '[]');
+    updateMemCount();
+
+    function updateMemCount(){ memCount.textContent = memory.length }
+
+    function addMessage(text, who='bot'){
+      const div = document.createElement('div'); div.className = 'msg '+(who==='user'?'user':'bot'); div.textContent = text; chat.appendChild(div); chat.scrollTop = chat.scrollHeight;
+      if(who==='bot' && toggleSpeech.checked) speak(text);
+    }
+
+    function respondTo(text){
+      const t = text.toLowerCase().trim();
+      for(const pair of memory){
+        const trigger = pair.trigger.toLowerCase();
+        if(trigger === t || (trigger.length>2 && t.includes(trigger))){ return pair.response; }
+        const parts = trigger.split(/\s+/).filter(p=>p.length>2);
+        if(parts.length>0 && parts.every(p=>t.includes(p))){ return pair.response; }
+      }
+      if(t.includes('hola')||t.includes('buenas')) return '¡Hola! ¿Cómo te puedo ayudar?';
+      if(t.includes('cómo estás')||t.includes('como estas')) return 'Estoy operativo, gracias por preguntar.';
+      if(t.includes('gracias')) return '¡Con gusto!';
+      if(t.includes('enséñame')||t.includes('enseñame')) return 'Puedes usar el botón \"Entrenar\" para añadir una frase y su respuesta.';
+      return 'No sé exactamente eso aún. ¿Quieres enseñarme la respuesta? Pulsa Entrenar.';
+    }
+
+    send.addEventListener('click', ()=>{ const v = userInput.value.trim(); if(!v) return; addMessage(v,'user'); const r = respondTo(v); setTimeout(()=> addMessage(r,'bot'), 350); userInput.value=''; });
+    userInput.addEventListener('keydown', (e)=>{ if(e.key==='Enter'){ send.click(); } });
+
+    btnTrain.addEventListener('click', ()=>{ trainPanel.style.display = trainPanel.style.display==='none'?'flex':'none'; });
+    teachClose.addEventListener('click', ()=>{ trainPanel.style.display='none' });
+    teachSave.addEventListener('click', ()=>{
+      const t = teachTrigger.value.trim(); const r = teachResponse.value.trim(); if(!t||!r){ alert('Escribe trigger y respuesta.'); return; }
+      memory.unshift({trigger:t,response:r});
+      localStorage.setItem('robot_memory', JSON.stringify(memory));
+      updateMemCount();
+      teachTrigger.value=''; teachResponse.value=''; trainPanel.style.display='none';
+      addMessage('He aprendido: \"'+t+'\" → \"'+r+'\"','bot');
+    });
+
+    btnExport.addEventListener('click', ()=>{
+      const blob = new Blob([JSON.stringify(memory, null, 2)], {type:'application/json'});
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a'); a.href=url; a.download='robot_memory.json'; a.click(); URL.revokeObjectURL(url);
+    });
+
+    btnImport.addEventListener('click', ()=>{
+      const inp = document.createElement('input'); inp.type='file'; inp.accept='application/json';
+      inp.onchange = ()=>{
+        const f = inp.files[0]; const reader = new FileReader(); reader.onload = ()=>{
+          try{ const imported = JSON.parse(reader.result); if(Array.isArray(imported)){ memory = imported; localStorage.setItem('robot_memory', JSON.stringify(memory)); updateMemCount(); alert('Importado '+memory.length+' enseñanzas.'); } else { alert('JSON inválido'); } }catch(e){ alert('Error leyendo JSON'); }
+        }; reader.readAsText(f);
+      }; inp.click();
+    });
+
+    btnSave.addEventListener('click', ()=>{ localStorage.setItem('robot_memory', JSON.stringify(memory)); alert('Memoria guardada localmente.'); updateMemCount(); });
+    btnClear.addEventListener('click', ()=>{ if(confirm('¿Borrar toda la memoria del robot?')){ memory=[]; localStorage.removeItem('robot_memory'); updateMemCount(); addMessage('Memoria borrada.','bot'); } });
+
+    btnExample.addEventListener('click', ()=>{
+      const examples = [
+        {trigger:'¿cómo te llamas?', response:'Me llamo Neon — tu robot futurista.'},
+        {trigger:'¿qué puedes hacer?', response:'Puedo aprender respuestas que tú me enseñes y hablarlas si lo activas.'},
+        {trigger:'dime un chiste', response:'¿Por qué el robot fue al bar? Porque necesitaba un poco de \"byte\".'}
+      ]; memory = examples.concat(memory); localStorage.setItem('robot_memory', JSON.stringify(memory)); updateMemCount(); addMessage('Ejemplos añadidos.','bot');
+    });
+
+    function speak(text){ if(!('speechSynthesis' in window)) return; const s = new SpeechSynthesisUtterance(text); s.lang='es-ES'; window.speechSynthesis.cancel(); window.speechSynthesis.speak(s); }
+
+    addMessage('¡Hola! Soy tu robot. Escríbeme algo o pulsa Entrenar para enseñarme nuevas respuestas.','bot');
+
+    updateMemCount();
+
+    window.addEventListener('beforeunload', ()=>{ localStorage.setItem('robot_memory', JSON.stringify(memory)); });
+
+  </script>
+</body>
+</html>
